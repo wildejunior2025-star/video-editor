@@ -4,16 +4,17 @@ import { promisify } from 'util'
 import path from 'path'
 import { existsSync, writeFileSync } from 'fs'
 import { ProjectData, LegendaSegment, Scene } from '@/types'
+import { renderQueue } from '@/lib/renderQueue'
 
 const execAsync = promisify(exec)
 export const maxDuration = 600
 
 const isWindows = process.platform === 'win32'
 const FONT_BOLD = isWindows
-  ? '${FONT_BOLD}'
+  ? '/Windows/Fonts/arialbd.ttf'
   : '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'
 const FONT_REGULAR = isWindows
-  ? '${FONT_REGULAR}'
+  ? '/Windows/Fonts/arial.ttf'
   : '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
 
 function toAssTime(sec: number): string {
@@ -200,8 +201,18 @@ function buildSceneFilters(scenes: Scene[], transcription: LegendaSegment[], W: 
 }
 
 export async function POST(req: NextRequest) {
+  const project: ProjectData = await req.json()
+
+  const position = renderQueue.size
+  if (position > 0) {
+    console.log(`[render] aguardando na fila — posição ${position}`)
+  }
+
+  return renderQueue.add(() => processRender(project)).promise
+}
+
+async function processRender(project: ProjectData): Promise<NextResponse> {
   try {
-    const project: ProjectData = await req.json()
 
     const outputDir = path.join(process.cwd(), 'public', 'uploads', project.id)
     const outputPath = path.join(outputDir, 'output.mp4')

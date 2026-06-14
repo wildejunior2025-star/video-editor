@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { ProjectData, Scene } from '@/types'
 import { recalcTimestamps } from '@/lib/recalcTimestamps'
 import { UploadZone } from '@/components/UploadZone'
@@ -8,6 +8,7 @@ import { SceneCard } from '@/components/SceneCard'
 import { VideoPreview } from '@/components/VideoPreview'
 import { AIChat } from '@/components/AIChat'
 import { ManualCuts } from '@/components/ManualCuts'
+import { createClient } from '@/lib/supabase/client'
 
 const initialProject: Partial<ProjectData> = {
   status: 'uploading',
@@ -18,6 +19,19 @@ const initialProject: Partial<ProjectData> = {
 export default function Home() {
   const [project, setProject] = useState<Partial<ProjectData>>(initialProject)
   const [prompt, setPrompt] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+  const supabase = createClient()
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) setUserEmail(data.user.email)
+    })
+  }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
   const [noiseReduction, setNoiseReduction] = useState(false)
   const [noiseLevel, setNoiseLevel] = useState<'leve' | 'medio' | 'forte'>('leve')
   const [estimatedSeconds, setEstimatedSeconds] = useState(0)
@@ -168,6 +182,18 @@ export default function Home() {
           <span style={{ fontSize: 28 }}>🎬</span>
           <span style={{ fontSize: 22, fontWeight: 800, color: '#FFB800' }}>VideoAI</span>
           <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginLeft: 4 }}>Editor Automático</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto', marginRight: 16 }}>
+          {userEmail && (
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', fontFamily: 'Sora, sans-serif' }}>
+              {userEmail}
+            </span>
+          )}
+          <button onClick={handleLogout} style={{
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 8, padding: '7px 14px', color: 'rgba(255,255,255,0.5)',
+            fontFamily: 'Sora, sans-serif', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          }}>Sair</button>
         </div>
         {isReady && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
