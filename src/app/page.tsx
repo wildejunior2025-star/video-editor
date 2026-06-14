@@ -337,7 +337,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <VideoPreview
-                    src={project.normalizedVideo || ''}
+                    src={project.normalizedVideo ? project.normalizedVideo.replace('/uploads/', '/api/video/') : ''}
                     transcription={project.transcription || []}
                     scenes={project.analysis?.scenes || []}
                     accentColor={project.analysis?.palette?.accent || '#FFB800'}
@@ -433,7 +433,7 @@ export default function Home() {
               {/* Cortes manuais */}
               {!isDone && project.normalizedVideo && (
                 <ManualCuts
-                  videoSrc={project.normalizedVideo}
+                  videoSrc={project.normalizedVideo.replace('/uploads/', '/api/video/')}
                   cuts={project.manualCuts || []}
                   onCutsChange={(cuts) => updateProject({ manualCuts: cuts })}
                 />
