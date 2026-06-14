@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #050508;
+  color: #fff;
+  font-family: 'Sora', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0e0e14;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a1a24;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FFB800;
+}
+
+.glass {
+  background: rgba(14, 14, 20, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 184, 0, 0.1);
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, #FFB800, #CC9200);
+}
