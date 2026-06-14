@@ -280,11 +280,13 @@ export async function POST(req: NextRequest) {
       const puppeteer = await import('puppeteer')
       const browser = await puppeteer.default.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--window-size=1080,1920'],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1080,1920'],
       })
       const page = await browser.newPage()
       await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: 1 })
-      await page.goto('http://localhost:3333/scene-capture', { waitUntil: 'networkidle0' })
+      const appPort = process.env.PORT || 3333
+      await page.goto(`http://localhost:${appPort}/scene-capture`, { waitUntil: 'networkidle0' })
       await page.evaluate(() => {
         document.documentElement.style.cssText = 'background:transparent!important'
         document.body.style.cssText = 'background:transparent!important;margin:0;padding:0'
