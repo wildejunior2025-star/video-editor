@@ -51,38 +51,52 @@ export default function Home() {
     setEstimatedSeconds(estimate)
 
     try {
-      // 1. Upload direto para Supabase Storage (sem passar pelo servidor — sem timeout)
-      const id = crypto.randomUUID()
-      const uploadedPaths: string[] = []
+      const useStorage = !!process.env.NEXT_PUBLIC_SUPABASE_URL
+      let uploadData: { id: string; originalVideo: string }
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const ext = file.name.split('.').pop() || 'mp4'
-        const storagePath = `${id}/part${i + 1}.${ext}`
+      if (useStorage) {
+        // Produção: upload direto para Supabase Storage (sem timeout do servidor)
+        const id = crypto.randomUUID()
+        const uploadedPaths: string[] = []
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          const ext = file.name.split('.').pop() || 'mp4'
+          const storagePath = `${id}/part${i + 1}.${ext}`
+          updateProject({
+            progress: 5 + Math.round((i / files.length) * 15),
+            message: files.length > 1 ? `Enviando vídeo ${i + 1} de ${files.length}...` : 'Enviando vídeo...',
+          })
+          const { error: uploadError } = await supabase.storage
+            .from('videos')
+            .upload(storagePath, file, { cacheControl: '3600', upsert: false })
+          if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`)
+          uploadedPaths.push(storagePath)
+        }
+
         updateProject({
-          progress: 5 + Math.round((i / files.length) * 15),
-          message: files.length > 1 ? `Enviando vídeo ${i + 1} de ${files.length}...` : 'Enviando vídeo...',
+          progress: 20,
+          message: files.length > 1 ? `Unindo ${files.length} vídeos...` : 'Processando...',
         })
-        const { error: uploadError } = await supabase.storage
-          .from('videos')
-          .upload(storagePath, file, { cacheControl: '3600', upsert: false })
-        if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`)
-        uploadedPaths.push(storagePath)
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, paths: uploadedPaths }),
+        })
+        uploadData = await res.json()
+        if (!res.ok) throw new Error((uploadData as any).error)
+      } else {
+        // Local: upload direto para o servidor (sem Supabase)
+        const msg = files.length > 1 ? `Unindo ${files.length} vídeos...` : 'Enviando vídeo...'
+        updateProject({ progress: 10, message: msg })
+        const formData = new FormData()
+        files.forEach(f => formData.append('video', f))
+        const res = await fetch('/api/upload', { method: 'POST', body: formData })
+        uploadData = await res.json()
+        if (!res.ok) throw new Error((uploadData as any).error)
       }
 
-      updateProject({
-        progress: 20,
-        message: files.length > 1 ? `Unindo ${files.length} vídeos...` : 'Processando...',
-      })
-
-      // Notifica o servidor com os paths (sem enviar o arquivo)
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, paths: uploadedPaths }),
-      })
-      const uploadData = await uploadRes.json()
-      if (!uploadRes.ok) throw new Error(uploadData.error)
       updateProject({ id: uploadData.id, originalVideo: uploadData.originalVideo, progress: 25, message: 'Normalizando vídeo...' })
 
       // 2. Converter formato (sem cortes ainda)
