@@ -2,10 +2,23 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname
+
+  // Rotas sempre liberadas (Puppeteer e render interno usam scene-capture)
+  const isPublic = path === '/login'
+    || path.startsWith('/api/video')
+    || path.startsWith('/scene-capture')
+    || path.startsWith('/render-preview')
+
+  // Sem Supabase configurado → modo local, sem autenticação
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.next({ request })
+  }
+
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
@@ -22,23 +35,17 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
-  const path = request.nextUrl.pathname
-  const isLogin = path === '/login'
   const isApi = path.startsWith('/api')
 
-  // Redireciona para login se não autenticado
-  if (!user && !isLogin && !isApi) {
+  if (!user && !isPublic && !isApi) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Bloqueia API sem autenticação (exceto servir vídeos)
-  if (!user && isApi && !path.startsWith('/api/video')) {
+  if (!user && isApi && !isPublic) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
-  // Se já logado, vai para home
-  if (user && isLogin) {
+  if (user && path === '/login') {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
