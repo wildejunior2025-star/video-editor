@@ -51,7 +51,7 @@ export default function Home() {
     setEstimatedSeconds(estimate)
 
     try {
-      const useStorage = !!process.env.NEXT_PUBLIC_SUPABASE_URL
+      const useStorage = process.env.NEXT_PUBLIC_USE_SUPABASE_STORAGE === 'true'
       let uploadData: { id: string; originalVideo: string }
 
       if (useStorage) {
