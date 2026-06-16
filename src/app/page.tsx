@@ -43,8 +43,7 @@ export default function Home() {
 
   const handleUpload = async (files: File[]) => {
     setLoading(true)
-    const msg = files.length > 1 ? `Unindo ${files.length} vídeos...` : 'Enviando vídeo...'
-    updateProject({ status: 'uploading', progress: 10, message: msg })
+    updateProject({ status: 'uploading', progress: 5, message: 'Enviando vídeo...' })
 
     // Estima tempo total: base 60s + 1s por MB + 30s se noise reduction
     const totalMB = files.reduce((sum, f) => sum + f.size / 1024 / 1024, 0)
@@ -52,10 +51,36 @@ export default function Home() {
     setEstimatedSeconds(estimate)
 
     try {
-      // 1. Upload (um ou múltiplos)
-      const formData = new FormData()
-      files.forEach(f => formData.append('video', f))
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
+      // 1. Upload direto para Supabase Storage (sem passar pelo servidor — sem timeout)
+      const id = crypto.randomUUID()
+      const uploadedPaths: string[] = []
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const ext = file.name.split('.').pop() || 'mp4'
+        const storagePath = `${id}/part${i + 1}.${ext}`
+        updateProject({
+          progress: 5 + Math.round((i / files.length) * 15),
+          message: files.length > 1 ? `Enviando vídeo ${i + 1} de ${files.length}...` : 'Enviando vídeo...',
+        })
+        const { error: uploadError } = await supabase.storage
+          .from('videos')
+          .upload(storagePath, file, { cacheControl: '3600', upsert: false })
+        if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`)
+        uploadedPaths.push(storagePath)
+      }
+
+      updateProject({
+        progress: 20,
+        message: files.length > 1 ? `Unindo ${files.length} vídeos...` : 'Processando...',
+      })
+
+      // Notifica o servidor com os paths (sem enviar o arquivo)
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, paths: uploadedPaths }),
+      })
       const uploadData = await uploadRes.json()
       if (!uploadRes.ok) throw new Error(uploadData.error)
       updateProject({ id: uploadData.id, originalVideo: uploadData.originalVideo, progress: 25, message: 'Normalizando vídeo...' })
